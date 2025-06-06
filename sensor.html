@@ -1,323 +1,618 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>传感器数据收集</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 10px;
-            background-color: #f5f5f5;
-            font-size: 16px;
-        }
-        .container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            box-sizing: border-box;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            font-size: 1.5rem;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .sensor-data {
-            margin-top: 10px;
-            padding: 8px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-        .button-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        button {
-            padding: 12px 15px;
-            font-size: 0.9rem;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            flex: 1 0 40%;
-            max-width: 45%;
-            margin-bottom: 10px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .status {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-        .counter {
-            text-align: center;
-            margin-top: 5px;
-            font-size: 0.85rem;
-        }
-        
-        /* 针对特小屏幕的优化 */
-        @media (max-width: 360px) {
-            body {
-                padding: 5px;
-                font-size: 14px;
-            }
-            .container {
-                padding: 10px;
-            }
-            h1 {
-                font-size: 1.3rem;
-            }
-            button {
-                padding: 10px;
-                font-size: 0.8rem;
-            }
-            .sensor-data {
-                font-size: 0.8rem;
-                padding: 6px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>手机运动传感器数据收集</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin: 10px 0;
+      font-size: 1.5rem;
+    }
+    .sensor-status {
+      background-color: #e74c3c;
+      color: white;
+      padding: 8px;
+      text-align: center;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .sensor-status.active {
+      background-color: #2ecc71;
+    }
+    .data-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .sensor-group {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 10px;
+      margin-bottom: 10px;
+      width: calc(50% - 5px);
+    }
+    .sensor-group h2 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+      font-size: 1rem;
+    }
+    .sensor-data {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    .data-item {
+      width: 30%;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    .data-value {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin: 3px 0;
+    }
+    .data-label {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+    }
+    .chart-container {
+      width: 100%;
+      height: 200px;
+      margin-bottom: 10px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 10px;
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 10px 0;
+    }
+    button {
+      background-color: #3498db;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 0.9rem;
+      margin: 2px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    #startBtn {
+      background-color: #2ecc71;
+    }
+    #startBtn:hover {
+      background-color: #27ae60;
+    }
+    #pauseBtn {
+      background-color: #f39c12;
+    }
+    #pauseBtn:hover {
+      background-color: #d35400;
+    }
+    #clearBtn {
+      background-color: #e74c3c;
+    }
+    #clearBtn:hover {
+      background-color: #c0392b;
+    }
+    .instructions {
+      background-color: #f8f9fa;
+      border-left: 4px solid #3498db;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 0 5px 5px 0;
+      font-size: 0.85rem;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      margin-bottom: 5px;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+    .instructions ol {
+      padding-left: 20px;
+      margin: 5px 0;
+    }
+    .instructions li {
+      margin-bottom: 5px;
+    }
+    .counter {
+      text-align: center;
+      font-size: 0.9rem;
+      margin: 8px 0;
+      font-weight: bold;
+    }
+    .collapsible {
+      background-color: #f1f1f1;
+      color: #444;
+      cursor: pointer;
+      padding: 8px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 0.9rem;
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+    .active-section, .collapsible:hover {
+      background-color: #e0e0e0;
+    }
+    .content {
+      padding: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+    }
+    @media (max-width: 600px) {
+      .sensor-group {
+        width: 100%;
+      }
+      .data-item {
+        width: 30%;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>传感器数据收集</h1>
-        
-        <div class="sensor-data" id="accelerometerData">加速度计: 等待数据...</div>
-        <div class="sensor-data" id="gyroscopeData">陀螺仪: 等待数据...</div>
-        
-        <div class="status" id="status">状态: 准备就绪</div>
-        <div class="counter" id="counter">已收集: 0 条记录</div>
-        
-        <div class="button-container">
-            <button id="startBtn">开始收集</button>
-            <button id="stopBtn" disabled>停止收集</button>
-            <button id="downloadAccBtn" disabled>下载加速度数据</button>
-            <button id="downloadGyroBtn" disabled>下载陀螺仪数据</button>
+  <h1>手机运动传感器数据收集</h1>
+    
+  <div id="sensorStatus" class="sensor-status">传感器未激活</div>
+  
+  <button type="button" class="collapsible">传感器数据</button>
+  <div class="content">
+    <div class="data-container">
+      <div class="sensor-group">
+        <h2>加速度传感器 (m/s²)</h2>
+        <div class="sensor-data">
+          <div class="data-item">
+            <div class="data-label">X 轴</div>
+            <div id="accX" class="data-value">0.00</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">Y 轴</div>
+            <div id="accY" class="data-value">0.00</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">Z 轴</div>
+            <div id="accZ" class="data-value">0.00</div>
+          </div>
         </div>
+      </div>
+      
+      <div class="sensor-group">
+        <h2>陀螺仪 (rad/s)</h2>
+        <div class="sensor-data">
+          <div class="data-item">
+            <div class="data-label">X 轴</div>
+            <div id="gyroX" class="data-value">0.00</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">Y 轴</div>
+            <div id="gyroY" class="data-value">0.00</div>
+          </div>
+          <div class="data-item">
+            <div class="data-label">Z 轴</div>
+            <div id="gyroZ" class="data-value">0.00</div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <script>
-        // 全局变量
-        let isCollecting = false;
-        let startTime = 0;
-        let recordCount = 0;
-        
-        // 数据存储
-        let accelerometerData = [];
-        let gyroscopeData = [];
-        
-        // 获取DOM元素
-        const accelerometerDisplay = document.getElementById('accelerometerData');
-        const gyroscopeDisplay = document.getElementById('gyroscopeData');
-        const statusDisplay = document.getElementById('status');
-        const counterDisplay = document.getElementById('counter');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const downloadAccBtn = document.getElementById('downloadAccBtn');
-        const downloadGyroBtn = document.getElementById('downloadGyroBtn');
-        
-        // 检查设备是否支持所需的传感器
-        if (window.DeviceMotionEvent && window.DeviceOrientationEvent) {
-            statusDisplay.textContent = '状态: 准备就绪';
+  </div>
+  
+  <div class="counter">已收集数据点: <span id="dataCount">0</span></div>
+  
+  <div class="chart-container">
+    <canvas id="accelerometerChart"></canvas>
+  </div>
+  
+  <div class="chart-container">
+    <canvas id="gyroscopeChart"></canvas>
+  </div>
+  
+  <div class="button-group">
+    <button id="startBtn">开始收集</button>
+    <button id="pauseBtn" disabled>暂停</button>
+    <button id="clearBtn">清除数据</button>
+    <button id="exportBtn">导出数据</button>
+  </div>
+  
+  <button type="button" class="collapsible">使用说明</button>
+  <div class="content">
+    <div class="instructions">
+      <h3>使用说明</h3>
+      <ol>
+        <li>点击"开始收集"按钮启用传感器（可能需要授权权限）</li>
+        <li>移动您的手机以生成加速度和陀螺仪数据</li>
+        <li>图表将实时显示传感器数据变化</li>
+        <li>使用"导出数据"下载CSV格式数据</li>
+        <li>本页面需要HTTPS连接才能访问传感器（本地开发除外）</li>
+      </ol>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // 全局变量
+    let isCollecting = false;
+    let sensorData = {
+      timestamp: [],
+      acceleration: {
+        x: [],
+        y: [],
+        z: []
+      },
+      gyroscope: {
+        x: [],
+        y: [],
+        z: []
+      }
+    };
+    
+    // DOM元素
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const sensorStatus = document.getElementById('sensorStatus');
+    const dataCount = document.getElementById('dataCount');
+    const accX = document.getElementById('accX');
+    const accY = document.getElementById('accY');
+    const accZ = document.getElementById('accZ');
+    const gyroX = document.getElementById('gyroX');
+    const gyroY = document.getElementById('gyroY');
+    const gyroZ = document.getElementById('gyroZ');
+    
+    // 初始化图表
+    const accCtx = document.getElementById('accelerometerChart').getContext('2d');
+    const gyroCtx = document.getElementById('gyroscopeChart').getContext('2d');
+    
+    const accelerometerChart = new Chart(accCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'X轴',
+            data: [],
+            borderColor: 'rgb(255, 99, 132)',
+            tension: 0.1,
+            pointRadius: 0
+          },
+          {
+            label: 'Y轴',
+            data: [],
+            borderColor: 'rgb(54, 162, 235)',
+            tension: 0.1,
+            pointRadius: 0
+          },
+          {
+            label: 'Z轴',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            display: false
+          },
+          y: {
+            title: {
+              display: true,
+              text: '加速度 (m/s²)'
+            }
+          }
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: '加速度传感器数据'
+          },
+          legend: {
+            position: 'top'
+          }
+        },
+        animation: false
+      }
+    });
+    
+    const gyroscopeChart = new Chart(gyroCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'X轴',
+            data: [],
+            borderColor: 'rgb(255, 159, 64)',
+            tension: 0.1,
+            pointRadius: 0
+          },
+          {
+            label: 'Y轴',
+            data: [],
+            borderColor: 'rgb(153, 102, 255)',
+            tension: 0.1,
+            pointRadius: 0
+          },
+          {
+            label: 'Z轴',
+            data: [],
+            borderColor: 'rgb(201, 203, 207)',
+            tension: 0.1,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            display: false
+          },
+          y: {
+            title: {
+              display: true,
+              text: '角速度 (rad/s)'
+            }
+          }
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: '陀螺仪数据'
+          },
+          legend: {
+            position: 'top'
+          }
+        },
+        animation: false
+      }
+    });
+    
+    // 检查设备运动传感器支持
+    function checkSensorSupport() {
+      if (window.DeviceMotionEvent) {
+        return true;
+      } else {
+        sensorStatus.textContent = "您的设备不支持运动传感器";
+        startBtn.disabled = true;
+        return false;
+      }
+    }
+    
+    // 处理传感器数据
+    function handleMotionEvent(event) {
+      if (!isCollecting) return;
+      
+      const now = new Date();
+      const timestamp = now.getTime();
+      
+      // 加速度数据 (包括重力)
+      const accData = event.accelerationIncludingGravity;
+      const x = accData ? accData.x : 0;
+      const y = accData ? accData.y : 0;
+      const z = accData ? accData.z : 0;
+      
+      // 陀螺仪数据
+      const gyroData = event.rotationRate;
+      const gx = gyroData ? gyroData.alpha : 0;
+      const gy = gyroData ? gyroData.beta : 0;
+      const gz = gyroData ? gyroData.gamma : 0;
+      
+      // 更新显示
+      accX.textContent = x ? x.toFixed(2) : "0.00";
+      accY.textContent = y ? y.toFixed(2) : "0.00";
+      accZ.textContent = z ? z.toFixed(2) : "0.00";
+      
+      gyroX.textContent = gx ? gx.toFixed(2) : "0.00";
+      gyroY.textContent = gy ? gy.toFixed(2) : "0.00";
+      gyroZ.textContent = gz ? gz.toFixed(2) : "0.00";
+      
+      // 存储数据
+      sensorData.timestamp.push(timestamp);
+      sensorData.acceleration.x.push(x);
+      sensorData.acceleration.y.push(y);
+      sensorData.acceleration.z.push(z);
+      sensorData.gyroscope.x.push(gx);
+      sensorData.gyroscope.y.push(gy);
+      sensorData.gyroscope.z.push(gz);
+      
+      // 更新数据点计数
+      dataCount.textContent = sensorData.timestamp.length;
+      
+      // 更新图表 (限制显示最近的100个数据点)
+      const displayLimit = 100;
+      const timeLabels = Array(Math.min(sensorData.timestamp.length, displayLimit)).fill('');
+      
+      // 更新加速度图表
+      accelerometerChart.data.labels = timeLabels;
+      accelerometerChart.data.datasets[0].data = sensorData.acceleration.x.slice(-displayLimit);
+      accelerometerChart.data.datasets[1].data = sensorData.acceleration.y.slice(-displayLimit);
+      accelerometerChart.data.datasets[2].data = sensorData.acceleration.z.slice(-displayLimit);
+      accelerometerChart.update();
+      
+      // 更新陀螺仪图表
+      gyroscopeChart.data.labels = timeLabels;
+      gyroscopeChart.data.datasets[0].data = sensorData.gyroscope.x.slice(-displayLimit);
+      gyroscopeChart.data.datasets[1].data = sensorData.gyroscope.y.slice(-displayLimit);
+      gyroscopeChart.data.datasets[2].data = sensorData.gyroscope.z.slice(-displayLimit);
+      gyroscopeChart.update();
+    }
+    
+    // 开始收集数据
+    function startCollection() {
+      if (isCollecting) return;
+      
+      // 请求设备运动权限 (iOS 13+ 需要)
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              activateSensors();
+            } else {
+              sensorStatus.textContent = "传感器权限被拒绝";
+            }
+          })
+          .catch(console.error);
+      } else {
+        // 其他设备直接激活
+        activateSensors();
+      }
+    }
+    
+    // 激活传感器
+    function activateSensors() {
+      window.addEventListener('devicemotion', handleMotionEvent);
+      isCollecting = true;
+      sensorStatus.textContent = "传感器已激活";
+      sensorStatus.classList.add('active');
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+    }
+    
+    // 暂停收集
+    function pauseCollection() {
+      if (!isCollecting) return;
+      
+      window.removeEventListener('devicemotion', handleMotionEvent);
+      isCollecting = false;
+      sensorStatus.textContent = "传感器已暂停";
+      sensorStatus.classList.remove('active');
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    }
+    
+    // 清除数据
+    function clearData() {
+      sensorData = {
+        timestamp: [],
+        acceleration: { x: [], y: [], z: [] },
+        gyroscope: { x: [], y: [], z: [] }
+      };
+      
+      dataCount.textContent = "0";
+      
+      // 重置图表
+      accelerometerChart.data.labels = [];
+      accelerometerChart.data.datasets.forEach(dataset => {
+        dataset.data = [];
+      });
+      accelerometerChart.update();
+      
+      gyroscopeChart.data.labels = [];
+      gyroscopeChart.data.datasets.forEach(dataset => {
+        dataset.data = [];
+      });
+      gyroscopeChart.update();
+      
+      // 重置显示的值
+      accX.textContent = "0.00";
+      accY.textContent = "0.00";
+      accZ.textContent = "0.00";
+      gyroX.textContent = "0.00";
+      gyroY.textContent = "0.00";
+      gyroZ.textContent = "0.00";
+    }
+    
+    // 导出数据为CSV
+    function exportData() {
+      if (sensorData.timestamp.length === 0) {
+        alert('没有数据可导出');
+        return;
+      }
+      
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z\n";
+      
+      for (let i = 0; i < sensorData.timestamp.length; i++) {
+        csvContent += `${sensorData.timestamp[i]},`;
+        csvContent += `${sensorData.acceleration.x[i]},`;
+        csvContent += `${sensorData.acceleration.y[i]},`;
+        csvContent += `${sensorData.acceleration.z[i]},`;
+        csvContent += `${sensorData.gyroscope.x[i]},`;
+        csvContent += `${sensorData.gyroscope.y[i]},`;
+        csvContent += `${sensorData.gyroscope.z[i]}\n`;
+      }
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `motion_sensor_data_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // 初始化折叠面板
+    const coll = document.getElementsByClassName("collapsible");
+    for (let i = 0; i < coll.length; i++) {
+      coll[i].addEventListener("click", function() {
+        this.classList.toggle("active-section");
+        const content = this.nextElementSibling;
+        if (content.style.maxHeight) {
+          content.style.maxHeight = null;
         } else {
-            statusDisplay.textContent = '状态: 设备不支持所需的传感器';
-            startBtn.disabled = true;
+          content.style.maxHeight = content.scrollHeight + "px";
         }
-        
-        // 开始收集数据
-        startBtn.addEventListener('click', () => {
-            isCollecting = true;
-            startTime = performance.now();
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            downloadAccBtn.disabled = true;
-            downloadGyroBtn.disabled = true;
-            statusDisplay.textContent = '状态: 收集中...';
-            
-            // 清空之前的数据
-            accelerometerData = [];
-            gyroscopeData = [];
-            recordCount = 0;
-            counterDisplay.textContent = '已收集: 0 条记录';
-            
-            // 添加CSV标题行
-            accelerometerData.push('time,seconds_elapsed,z,y,x');
-            gyroscopeData.push('time,seconds_elapsed,z,y,x');
-            
-            // 请求传感器权限
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('devicemotion', handleMotion);
-                        } else {
-                            statusDisplay.textContent = '状态: 加速度计权限被拒绝';
-                            isCollecting = false;
-                            startBtn.disabled = false;
-                            stopBtn.disabled = true;
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                window.addEventListener('devicemotion', handleMotion);
-            }
-            
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                        } else {
-                            statusDisplay.textContent = '状态: 陀螺仪权限被拒绝';
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                window.addEventListener('deviceorientation', handleOrientation);
-            }
-        });
-        
-        // 停止收集数据
-        stopBtn.addEventListener('click', () => {
-            isCollecting = false;
-            window.removeEventListener('devicemotion', handleMotion);
-            window.removeEventListener('deviceorientation', handleOrientation);
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            downloadAccBtn.disabled = false;
-            downloadGyroBtn.disabled = false;
-            statusDisplay.textContent = '状态: 已停止';
-        });
-        
-        // 下载加速度计数据
-        downloadAccBtn.addEventListener('click', () => {
-            if (accelerometerData.length > 1) { // 确保有数据（不只是标题行）
-                downloadCSV(accelerometerData.join('\n'), 'Accelerometer.csv');
-            } else {
-                alert('没有可下载的加速度计数据');
-            }
-        });
-        
-        // 下载陀螺仪数据
-        downloadGyroBtn.addEventListener('click', () => {
-            if (gyroscopeData.length > 1) { // 确保有数据（不只是标题行）
-                downloadCSV(gyroscopeData.join('\n'), 'Gyroscope.csv');
-            } else {
-                alert('没有可下载的陀螺仪数据');
-            }
-        });
-        
-        // 处理加速度计数据
-        function handleMotion(event) {
-            if (!isCollecting) return;
-            
-            const currentTime = Date.now() * 1000; // 转换为纳秒级时间戳
-            const secondsElapsed = (performance.now() - startTime) / 1000;
-            
-            const acceleration = event.accelerationIncludingGravity;
-            if (!acceleration) return;
-            
-            const x = acceleration.x || 0;
-            const y = acceleration.y || 0;
-            const z = acceleration.z || 0;
-            
-            // 显示数据
-            accelerometerDisplay.textContent = `加速度计: x=${x.toFixed(6)}, y=${y.toFixed(6)}, z=${z.toFixed(6)}`;
-            
-            // 存储数据，格式与样本一致
-            const dataRow = `${currentTime},${secondsElapsed.toFixed(15)},${z},${y},${x}`;
-            accelerometerData.push(dataRow);
-            
-            updateCounter();
-        }
-        
-        // 处理陀螺仪数据
-        function handleOrientation(event) {
-            if (!isCollecting) return;
-            
-            const currentTime = Date.now() * 1000; // 转换为纳秒级时间戳
-            const secondsElapsed = (performance.now() - startTime) / 1000;
-            
-            // 将角度转换为弧度，与样本格式一致
-            const alpha = (event.alpha || 0) * Math.PI / 180;
-            const beta = (event.beta || 0) * Math.PI / 180;
-            const gamma = (event.gamma || 0) * Math.PI / 180;
-            
-            // 显示数据
-            gyroscopeDisplay.textContent = `陀螺仪: α=${alpha.toFixed(15)}, β=${beta.toFixed(15)}, γ=${gamma.toFixed(15)}`;
-            
-            // 存储数据，格式与样本一致
-            const dataRow = `${currentTime},${secondsElapsed.toFixed(15)},${alpha},${beta},${gamma}`;
-            gyroscopeData.push(dataRow);
-            
-            updateCounter();
-        }
-        
-        // 更新计数器
-        function updateCounter() {
-            recordCount = Math.max(accelerometerData.length, gyroscopeData.length) - 1; // 减去标题行
-            counterDisplay.textContent = `已收集: ${recordCount} 条记录`;
-        }
-        
-        // 下载CSV文件
-        function downloadCSV(csvContent, fileName) {
-            try {
-                console.log("开始下载...");
-                
-                // 确保添加UTF-8 BOM以正确显示中文
-                const BOM = "\uFEFF";
-                const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8" });
-                
-                if (window.navigator.msSaveOrOpenBlob) {
-                    // IE11
-                    window.navigator.msSaveBlob(blob, fileName);
-                } else {
-                    // 其他现代浏览器
-                    const link = document.createElement("a");
-                    const url = URL.createObjectURL(blob);
-                    
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", fileName);
-                    link.style.display = "none";
-                    
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                }
-                
-                console.log("下载完成");
-            } catch (error) {
-                console.error("下载出错:", error);
-                alert("下载失败: " + error.message);
-            }
-        }
-    </script>
+      });
+    }
+    
+    // 事件监听器
+    startBtn.addEventListener('click', startCollection);
+    pauseBtn.addEventListener('click', pauseCollection);
+    clearBtn.addEventListener('click', clearData);
+    exportBtn.addEventListener('click', exportData);
+    
+    // 初始化检查
+    document.addEventListener('DOMContentLoaded', function() {
+      checkSensorSupport();
+      
+      // 默认展开第一个折叠面板（传感器数据）
+      const firstCollapsible = document.getElementsByClassName("collapsible")[0];
+      firstCollapsible.classList.add("active-section");
+      const content = firstCollapsible.nextElementSibling;
+      content.style.maxHeight = content.scrollHeight + "px";
+    });
+  </script>
 </body>
 </html>
