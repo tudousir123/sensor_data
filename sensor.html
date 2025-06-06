@@ -257,13 +257,14 @@
         <li>点击"开始收集"按钮启用传感器（可能需要授权权限）</li>
         <li>移动您的手机以生成加速度和陀螺仪数据</li>
         <li>图表将实时显示传感器数据变化</li>
-        <li>使用"导出数据"下载CSV格式数据</li>
+        <li>使用"导出数据"下载包含加速度和陀螺仪数据的ZIP文件</li>
         <li>本页面需要HTTPS连接才能访问传感器（本地开发除外）</li>
       </ol>
     </div>
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     // 全局变量
     let isCollecting = false;
@@ -425,7 +426,7 @@
       if (!isCollecting) return;
       
       const now = new Date();
-      const timestamp = now.getTime();
+      const timestamp = now.getTime() * 1000; // 转换为纳秒级时间戳，与示例文件格式一致
       
       // 加速度数据 (包括重力)
       const accData = event.accelerationIncludingGravity;
@@ -561,26 +562,65 @@
         return;
       }
       
-      let csvContent = "data:text/csv;charset=utf-8,";
-      csvContent += "timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z\n";
+      // 创建一个新的JSZip实例
+      const zip = new JSZip();
+      
+      // 获取当前时间作为文件名的一部分
+      const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+      
+      // 创建加速度数据CSV
+      let accCsvContent = "time,seconds_elapsed,z,y,x\n";
+      
+      // 记录开始时间，用于计算seconds_elapsed
+      const startTime = sensorData.timestamp[0] / 1000; // 转换回毫秒
       
       for (let i = 0; i < sensorData.timestamp.length; i++) {
-        csvContent += `${sensorData.timestamp[i]},`;
-        csvContent += `${sensorData.acceleration.x[i]},`;
-        csvContent += `${sensorData.acceleration.y[i]},`;
-        csvContent += `${sensorData.acceleration.z[i]},`;
-        csvContent += `${sensorData.gyroscope.x[i]},`;
-        csvContent += `${sensorData.gyroscope.y[i]},`;
-        csvContent += `${sensorData.gyroscope.z[i]}\n`;
+        const currentTime = sensorData.timestamp[i];
+        const secondsElapsed = ((currentTime / 1000 - startTime) / 1000).toFixed(15);
+        
+        accCsvContent += `${currentTime},`;
+        accCsvContent += `${secondsElapsed},`;
+        accCsvContent += `${sensorData.acceleration.z[i]},`;
+        accCsvContent += `${sensorData.acceleration.y[i]},`;
+        accCsvContent += `${sensorData.acceleration.x[i]}\n`;
       }
       
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `motion_sensor_data_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 创建陀螺仪数据CSV
+      let gyroCsvContent = "time,seconds_elapsed,z,y,x\n";
+      
+      for (let i = 0; i < sensorData.timestamp.length; i++) {
+        const currentTime = sensorData.timestamp[i];
+        const secondsElapsed = ((currentTime / 1000 - startTime) / 1000).toFixed(15);
+        
+        gyroCsvContent += `${currentTime},`;
+        gyroCsvContent += `${secondsElapsed},`;
+        gyroCsvContent += `${sensorData.gyroscope.z[i]},`;
+        gyroCsvContent += `${sensorData.gyroscope.y[i]},`;
+        gyroCsvContent += `${sensorData.gyroscope.x[i]}\n`;
+      }
+      
+      // 添加文件到zip
+      zip.file("Accelerometer.csv", accCsvContent);
+      zip.file("Gyroscope.csv", gyroCsvContent);
+      
+      // 生成zip文件并下载
+      zip.generateAsync({type: "blob"})
+        .then(function(content) {
+          const zipFileName = `motion_sensor_data_${timestamp}.zip`;
+          
+          // 创建下载链接
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(content);
+          link.download = zipFileName;
+          document.body.appendChild(link);
+          link.click();
+          
+          // 清理
+          setTimeout(function() {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+          }, 100);
+        });
     }
     
     // 初始化折叠面板
