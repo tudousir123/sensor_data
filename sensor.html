@@ -176,6 +176,16 @@
       overflow: hidden;
       transition: max-height 0.2s ease-out;
     }
+    .timer {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin: 10px 0;
+      padding: 8px;
+      background-color: #3498db;
+      color: white;
+      border-radius: 5px;
+    }
     @media (max-width: 600px) {
       .sensor-group {
         width: 100%;
@@ -190,6 +200,8 @@
   <h1>手机运动传感器数据收集</h1>
     
   <div id="sensorStatus" class="sensor-status">传感器未激活</div>
+  
+  <div id="timer" class="timer">00:00:00</div>
   
   <button type="button" class="collapsible">传感器数据</button>
   <div class="content">
@@ -281,6 +293,12 @@
         z: []
       }
     };
+    
+    // 计时器变量
+    let startTime = 0;
+    let elapsedTime = 0;
+    let timerInterval = null;
+    const timerElement = document.getElementById('timer');
     
     // DOM元素
     const startBtn = document.getElementById('startBtn');
@@ -410,6 +428,44 @@
       }
     });
     
+    // 格式化时间为 HH:MM:SS 格式
+    function formatTime(milliseconds) {
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      return (
+        String(hours).padStart(2, '0') + ':' +
+        String(minutes).padStart(2, '0') + ':' +
+        String(seconds).padStart(2, '0')
+      );
+    }
+    
+    // 开始计时器
+    function startTimer() {
+      startTime = Date.now() - elapsedTime;
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    // 更新计时器显示
+    function updateTimer() {
+      elapsedTime = Date.now() - startTime;
+      timerElement.textContent = formatTime(elapsedTime);
+    }
+    
+    // 暂停计时器
+    function pauseTimer() {
+      clearInterval(timerInterval);
+    }
+    
+    // 重置计时器
+    function resetTimer() {
+      clearInterval(timerInterval);
+      elapsedTime = 0;
+      timerElement.textContent = '00:00:00';
+    }
+    
     // 检查设备运动传感器支持
     function checkSensorSupport() {
       if (window.DeviceMotionEvent) {
@@ -509,6 +565,9 @@
       sensorStatus.classList.add('active');
       startBtn.disabled = true;
       pauseBtn.disabled = false;
+      
+      // 开始计时
+      startTimer();
     }
     
     // 暂停收集
@@ -521,6 +580,9 @@
       sensorStatus.classList.remove('active');
       startBtn.disabled = false;
       pauseBtn.disabled = true;
+      
+      // 暂停计时
+      pauseTimer();
     }
     
     // 清除数据
@@ -553,6 +615,9 @@
       gyroX.textContent = "0.00";
       gyroY.textContent = "0.00";
       gyroZ.textContent = "0.00";
+      
+      // 重置计时器
+      resetTimer();
     }
     
     // 导出数据为CSV
@@ -602,6 +667,12 @@
       // 添加文件到zip
       zip.file("Accelerometer.csv", accCsvContent);
       zip.file("Gyroscope.csv", gyroCsvContent);
+      
+      // 添加收集时间信息
+      const infoContent = `收集开始时间: ${new Date(startTime).toISOString()}\n` +
+                          `收集持续时间: ${formatTime(elapsedTime)}\n` +
+                          `数据点数量: ${sensorData.timestamp.length}\n`;
+      zip.file("CollectionInfo.txt", infoContent);
       
       // 生成zip文件并下载
       zip.generateAsync({type: "blob"})
