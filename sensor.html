@@ -186,6 +186,42 @@
       color: white;
       border-radius: 5px;
     }
+    .settings-container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .settings-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+    .radio-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+    .radio-option {
+      display: flex;
+      align-items: center;
+    }
+    .radio-option input {
+      margin-right: 5px;
+    }
+    .sampling-info {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+      margin-top: 5px;
+      font-style: italic;
+    }
+    .actual-rate {
+      font-weight: bold;
+      margin-left: 5px;
+      color: #e74c3c;
+    }
     @media (max-width: 600px) {
       .sensor-group {
         width: 100%;
@@ -202,6 +238,21 @@
   <div id="sensorStatus" class="sensor-status">传感器未激活</div>
   
   <div id="timer" class="timer">00:00:00</div>
+  
+  <div class="settings-container">
+    <div class="settings-title">采样频率设置</div>
+    <div class="radio-group">
+      <label class="radio-option">
+        <input type="radio" name="samplingRate" value="100" checked> 100Hz
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="samplingRate" value="200"> 200Hz
+      </label>
+    </div>
+    <div class="sampling-info">
+      实际采样率可能受设备性能影响。当前实际采样率: <span id="actualRate" class="actual-rate">0</span> Hz
+    </div>
+  </div>
   
   <button type="button" class="collapsible">传感器数据</button>
   <div class="content">
@@ -266,6 +317,7 @@
     <div class="instructions">
       <h3>使用说明</h3>
       <ol>
+        <li>选择所需的采样频率（100Hz 或 200Hz）</li>
         <li>点击"开始收集"按钮启用传感器（可能需要授权权限）</li>
         <li>移动您的手机以生成加速度和陀螺仪数据</li>
         <li>图表将实时显示传感器数据变化</li>
@@ -294,6 +346,18 @@
       }
     };
     
+    // 采样相关变量
+    let samplingInterval = null;
+    let lastSampleTime = 0;
+    let sampleCount = 0;
+    let rateUpdateInterval = null;
+    let targetSamplingRate = 100; // 默认100Hz
+    let samplingBuffer = {
+      timestamp: 0,
+      acceleration: { x: 0, y: 0, z: 0 },
+      gyroscope: { x: 0, y: 0, z: 0 }
+    };
+    
     // 计时器变量
     let startTime = 0;
     let elapsedTime = 0;
@@ -313,6 +377,8 @@
     const gyroX = document.getElementById('gyroX');
     const gyroY = document.getElementById('gyroY');
     const gyroZ = document.getElementById('gyroZ');
+    const actualRateElement = document.getElementById('actualRate');
+    const samplingRateRadios = document.getElementsByName('samplingRate');
     
     // 初始化图表
     const accCtx = document.getElementById('accelerometerChart').getContext('2d');
@@ -428,6 +494,31 @@
       }
     });
     
+    // 获取选择的采样频率
+    function getSelectedSamplingRate() {
+      for (const radio of samplingRateRadios) {
+        if (radio.checked) {
+          return parseInt(radio.value);
+        }
+      }
+      return 100; // 默认值
+    }
+    
+    // 更新实际采样率显示
+    function updateActualRate() {
+      if (!isCollecting || sampleCount < 10) {
+        actualRateElement.textContent = "0";
+        return;
+      }
+      
+      const now = Date.now();
+      const timeElapsed = (now - startTime) / 1000; // 秒
+      if (timeElapsed > 0) {
+        const rate = Math.round(sampleCount / timeElapsed);
+        actualRateElement.textContent = rate;
+      }
+    }
+    
     // 格式化时间为 HH:MM:SS 格式
     function formatTime(milliseconds) {
       const totalSeconds = Math.floor(milliseconds / 1000);
@@ -477,47 +568,64 @@
       }
     }
     
-    // 处理传感器数据
+    // 处理传感器数据（原始事件处理）
     function handleMotionEvent(event) {
       if (!isCollecting) return;
       
+      // 更新缓冲区中的最新数据
       const now = new Date();
-      const timestamp = now.getTime() * 1000; // 转换为纳秒级时间戳，与示例文件格式一致
+      samplingBuffer.timestamp = now.getTime() * 1000; // 转换为纳秒级时间戳
       
       // 加速度数据 (包括重力)
       const accData = event.accelerationIncludingGravity;
-      const x = accData ? accData.x : 0;
-      const y = accData ? accData.y : 0;
-      const z = accData ? accData.z : 0;
+      samplingBuffer.acceleration.x = accData ? accData.x : 0;
+      samplingBuffer.acceleration.y = accData ? accData.y : 0;
+      samplingBuffer.acceleration.z = accData ? accData.z : 0;
       
       // 陀螺仪数据
       const gyroData = event.rotationRate;
-      const gx = gyroData ? gyroData.alpha : 0;
-      const gy = gyroData ? gyroData.beta : 0;
-      const gz = gyroData ? gyroData.gamma : 0;
+      samplingBuffer.gyroscope.x = gyroData ? gyroData.alpha : 0;
+      samplingBuffer.gyroscope.y = gyroData ? gyroData.beta : 0;
+      samplingBuffer.gyroscope.z = gyroData ? gyroData.gamma : 0;
       
-      // 更新显示
-      accX.textContent = x ? x.toFixed(2) : "0.00";
-      accY.textContent = y ? y.toFixed(2) : "0.00";
-      accZ.textContent = z ? z.toFixed(2) : "0.00";
+      // 更新显示的传感器值
+      updateSensorDisplay();
+    }
+    
+    // 更新传感器显示
+    function updateSensorDisplay() {
+      accX.textContent = samplingBuffer.acceleration.x.toFixed(2);
+      accY.textContent = samplingBuffer.acceleration.y.toFixed(2);
+      accZ.textContent = samplingBuffer.acceleration.z.toFixed(2);
       
-      gyroX.textContent = gx ? gx.toFixed(2) : "0.00";
-      gyroY.textContent = gy ? gy.toFixed(2) : "0.00";
-      gyroZ.textContent = gz ? gz.toFixed(2) : "0.00";
+      gyroX.textContent = samplingBuffer.gyroscope.x.toFixed(2);
+      gyroY.textContent = samplingBuffer.gyroscope.y.toFixed(2);
+      gyroZ.textContent = samplingBuffer.gyroscope.z.toFixed(2);
+    }
+    
+    // 采样函数 - 按照设定的频率记录数据
+    function sampleData() {
+      if (!isCollecting) return;
       
-      // 存储数据
-      sensorData.timestamp.push(timestamp);
-      sensorData.acceleration.x.push(x);
-      sensorData.acceleration.y.push(y);
-      sensorData.acceleration.z.push(z);
-      sensorData.gyroscope.x.push(gx);
-      sensorData.gyroscope.y.push(gy);
-      sensorData.gyroscope.z.push(gz);
+      // 记录数据
+      sensorData.timestamp.push(samplingBuffer.timestamp);
+      sensorData.acceleration.x.push(samplingBuffer.acceleration.x);
+      sensorData.acceleration.y.push(samplingBuffer.acceleration.y);
+      sensorData.acceleration.z.push(samplingBuffer.acceleration.z);
+      sensorData.gyroscope.x.push(samplingBuffer.gyroscope.x);
+      sensorData.gyroscope.y.push(samplingBuffer.gyroscope.y);
+      sensorData.gyroscope.z.push(samplingBuffer.gyroscope.z);
       
-      // 更新数据点计数
-      dataCount.textContent = sensorData.timestamp.length;
+      // 更新计数
+      sampleCount++;
+      dataCount.textContent = sampleCount;
       
       // 更新图表 (限制显示最近的100个数据点)
+      updateCharts();
+    }
+    
+    // 更新图表
+    function updateCharts() {
       const displayLimit = 100;
       const timeLabels = Array(Math.min(sensorData.timestamp.length, displayLimit)).fill('');
       
@@ -540,12 +648,21 @@
     function startCollection() {
       if (isCollecting) return;
       
+      // 获取选择的采样频率
+      targetSamplingRate = getSelectedSamplingRate();
+      const samplingIntervalMs = 1000 / targetSamplingRate;
+      
+      // 禁用采样率选择
+      for (const radio of samplingRateRadios) {
+        radio.disabled = true;
+      }
+      
       // 请求设备运动权限 (iOS 13+ 需要)
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
           .then(permissionState => {
             if (permissionState === 'granted') {
-              activateSensors();
+              activateSensors(samplingIntervalMs);
             } else {
               sensorStatus.textContent = "传感器权限被拒绝";
             }
@@ -553,15 +670,26 @@
           .catch(console.error);
       } else {
         // 其他设备直接激活
-        activateSensors();
+        activateSensors(samplingIntervalMs);
       }
     }
     
     // 激活传感器
-    function activateSensors() {
+    function activateSensors(samplingIntervalMs) {
+      // 重置计数
+      sampleCount = 0;
+      
+      // 监听设备运动事件 (尽可能高的频率获取原始数据)
       window.addEventListener('devicemotion', handleMotionEvent);
+      
+      // 设置固定频率的采样
+      samplingInterval = setInterval(sampleData, samplingIntervalMs);
+      
+      // 设置实际采样率更新间隔
+      rateUpdateInterval = setInterval(updateActualRate, 1000);
+      
       isCollecting = true;
-      sensorStatus.textContent = "传感器已激活";
+      sensorStatus.textContent = `传感器已激活 (目标: ${targetSamplingRate}Hz)`;
       sensorStatus.classList.add('active');
       startBtn.disabled = true;
       pauseBtn.disabled = false;
@@ -575,11 +703,19 @@
       if (!isCollecting) return;
       
       window.removeEventListener('devicemotion', handleMotionEvent);
+      clearInterval(samplingInterval);
+      clearInterval(rateUpdateInterval);
+      
       isCollecting = false;
       sensorStatus.textContent = "传感器已暂停";
       sensorStatus.classList.remove('active');
       startBtn.disabled = false;
       pauseBtn.disabled = true;
+      
+      // 启用采样率选择
+      for (const radio of samplingRateRadios) {
+        radio.disabled = false;
+      }
       
       // 暂停计时
       pauseTimer();
@@ -593,7 +729,9 @@
         gyroscope: { x: [], y: [], z: [] }
       };
       
+      sampleCount = 0;
       dataCount.textContent = "0";
+      actualRateElement.textContent = "0";
       
       // 重置图表
       accelerometerChart.data.labels = [];
@@ -615,6 +753,11 @@
       gyroX.textContent = "0.00";
       gyroY.textContent = "0.00";
       gyroZ.textContent = "0.00";
+      
+      // 启用采样率选择
+      for (const radio of samplingRateRadios) {
+        radio.disabled = false;
+      }
       
       // 重置计时器
       resetTimer();
@@ -668,62 +811,7 @@
       zip.file("Accelerometer.csv", accCsvContent);
       zip.file("Gyroscope.csv", gyroCsvContent);
       
-      // 添加收集时间信息
+      // 添加收集信息
+      const actualRate = actualRateElement.textContent;
       const infoContent = `收集开始时间: ${new Date(startTime).toISOString()}\n` +
-                          `收集持续时间: ${formatTime(elapsedTime)}\n` +
-                          `数据点数量: ${sensorData.timestamp.length}\n`;
-      zip.file("CollectionInfo.txt", infoContent);
-      
-      // 生成zip文件并下载
-      zip.generateAsync({type: "blob"})
-        .then(function(content) {
-          const zipFileName = `motion_sensor_data_${timestamp}.zip`;
-          
-          // 创建下载链接
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(content);
-          link.download = zipFileName;
-          document.body.appendChild(link);
-          link.click();
-          
-          // 清理
-          setTimeout(function() {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-          }, 100);
-        });
-    }
-    
-    // 初始化折叠面板
-    const coll = document.getElementsByClassName("collapsible");
-    for (let i = 0; i < coll.length; i++) {
-      coll[i].addEventListener("click", function() {
-        this.classList.toggle("active-section");
-        const content = this.nextElementSibling;
-        if (content.style.maxHeight) {
-          content.style.maxHeight = null;
-        } else {
-          content.style.maxHeight = content.scrollHeight + "px";
-        }
-      });
-    }
-    
-    // 事件监听器
-    startBtn.addEventListener('click', startCollection);
-    pauseBtn.addEventListener('click', pauseCollection);
-    clearBtn.addEventListener('click', clearData);
-    exportBtn.addEventListener('click', exportData);
-    
-    // 初始化检查
-    document.addEventListener('DOMContentLoaded', function() {
-      checkSensorSupport();
-      
-      // 默认展开第一个折叠面板（传感器数据）
-      const firstCollapsible = document.getElementsByClassName("collapsible")[0];
-      firstCollapsible.classList.add("active-section");
-      const content = firstCollapsible.nextElementSibling;
-      content.style.maxHeight = content.scrollHeight + "px";
-    });
-  </script>
-</body>
-</html>
+                          `收集持续时间: ${formatTime(el
